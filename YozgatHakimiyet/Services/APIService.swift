@@ -142,5 +142,106 @@ class APIService {
         }
         return try await performRequest(url: url, responseType: GalleryDetailResponse.self)
     }
+    
+    // MARK: - Videos
+    
+    func fetchVideos() async throws -> VideoResponse {
+        guard let url = buildURL(endpoint: "videos") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: VideoResponse.self)
+    }
+    
+    func fetchLatestVideos(limit: Int? = nil) async throws -> VideoResponse {
+        let endpoint = limit != nil ? "videos/latest/\(limit!)" : "videos/latest"
+        guard let url = buildURL(endpoint: endpoint) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: VideoResponse.self)
+    }
+    
+    func fetchFeaturedVideos() async throws -> VideoResponse {
+        guard let url = buildURL(endpoint: "videos/featured") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: VideoResponse.self)
+    }
+    
+    func fetchTrendVideos() async throws -> VideoResponse {
+        guard let url = buildURL(endpoint: "videos/trend") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: VideoResponse.self)
+    }
+    
+    func fetchVideoDetail(id: Int) async throws -> VideoDetailResponse {
+        guard let url = buildURL(endpoint: "videos/\(id)") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: VideoDetailResponse.self)
+    }
+    
+    func searchVideos(query: String) async throws -> VideoResponse {
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        guard let url = buildURL(endpoint: "videos?search=\(encodedQuery)") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: VideoResponse.self)
+    }
+    
+    // MARK: - Services (Special URL format)
+    
+    private func buildServiceURL(path: String, parameters: [String: String]) -> URL? {
+        var components = URLComponents(string: "\(Config.shared.baseURL)/api/v2/services/\(path)")
+        var queryItems: [URLQueryItem] = []
+        
+        for (key, value) in parameters {
+            queryItems.append(URLQueryItem(name: key, value: value))
+        }
+        queryItems.append(URLQueryItem(name: "apiKey", value: Config.shared.apiKey))
+        
+        components?.queryItems = queryItems
+        return components?.url
+    }
+    
+    func fetchWeather(city: String = "istanbul") async throws -> WeatherResponse {
+        guard let url = buildServiceURL(path: "weather", parameters: ["city": city]) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: WeatherResponse.self)
+    }
+    
+    func fetchPrayerTimes(city: String = "istanbul", district: String? = nil) async throws -> PrayerTimesResponse {
+        var params = ["city": city]
+        if let district = district {
+            params["district"] = district
+        }
+        guard let url = buildServiceURL(path: "prayer-times", parameters: params) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: PrayerTimesResponse.self)
+    }
+    
+    func fetchCurrency(type: String? = nil) async throws -> CurrencyResponse {
+        var params: [String: String] = [:]
+        if let type = type {
+            params["type"] = type
+        }
+        guard let url = buildServiceURL(path: "currency", parameters: params) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: CurrencyResponse.self)
+    }
+    
+    func fetchPharmacy(city: String = "istanbul", district: String? = nil) async throws -> PharmacyResponse {
+        var params = ["city": city]
+        if let district = district {
+            params["district"] = district
+        }
+        guard let url = buildServiceURL(path: "pharmacy", parameters: params) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: PharmacyResponse.self)
+    }
 }
 

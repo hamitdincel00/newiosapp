@@ -7,7 +7,7 @@ struct BottomTabView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(showSideMenu: $showSideMenu)
+            NewHomeView(showSideMenu: $showSideMenu)
                 .tabItem {
                     Label("Ana Sayfa", systemImage: "house.fill")
                 }
@@ -25,17 +25,23 @@ struct BottomTabView: View {
                 }
                 .tag(2)
             
+            VideoListView(showSideMenu: $showSideMenu)
+                .tabItem {
+                    Label("Videolar", systemImage: "play.rectangle.fill")
+                }
+                .tag(3)
+            
             GalleryListView(showSideMenu: $showSideMenu)
                 .tabItem {
                     Label("Galeri", systemImage: "photo.on.rectangle")
                 }
-                .tag(3)
+                .tag(4)
             
             SearchView(showSideMenu: $showSideMenu)
                 .tabItem {
                     Label("Ara", systemImage: "magnifyingglass")
                 }
-                .tag(4)
+                .tag(5)
         }
         .accentColor(.blue)
     }
