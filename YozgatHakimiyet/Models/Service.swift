@@ -106,15 +106,60 @@ struct CurrencyData: Codable, Identifiable {
 
 // MARK: - Sports Service (Standings)
 struct StandingsResponse: Codable {
-    let data: [TeamStanding]
+    let data: StandingsData
     let error: Bool
     let message: String?
 }
 
+// MARK: - Leagues List Response
+struct LeaguesListResponse: Codable {
+    let data: [String: StandingsData]
+    let error: Bool
+    let message: String?
+    let errors: String?
+}
+
+struct LeagueItem: Codable, Identifiable {
+    let league: LeagueInfo
+    let slug: String
+    
+    var id: String { slug }
+    
+    init(league: LeagueInfo, slug: String) {
+        self.league = league
+        self.slug = slug
+    }
+    
+    // Slug'ı league name'den oluştur (küçük harf, tire ile)
+    static func slugFromName(_ name: String) -> String {
+        return name.lowercased()
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "ı", with: "i")
+            .replacingOccurrences(of: "ğ", with: "g")
+            .replacingOccurrences(of: "ü", with: "u")
+            .replacingOccurrences(of: "ş", with: "s")
+            .replacingOccurrences(of: "ö", with: "o")
+            .replacingOccurrences(of: "ç", with: "c")
+    }
+}
+
+struct StandingsData: Codable {
+    let league: LeagueInfo
+    let standings: [TeamStanding]
+}
+
+struct LeagueInfo: Codable {
+    let name: String
+    let country: String
+    let logo: String?
+    let flag: String?
+}
+
 struct TeamStanding: Codable, Identifiable {
-    let id: Int
     let rank: Int
     let team: String
+    let logo: String?
+    let form: String?
     let played: Int
     let won: Int
     let drawn: Int
@@ -123,13 +168,21 @@ struct TeamStanding: Codable, Identifiable {
     let goalsAgainst: Int
     let goalDifference: Int
     let points: Int
+    let description: String?
+    
+    var id: String {
+        "\(rank)-\(team)"
+    }
     
     enum CodingKeys: String, CodingKey {
-        case id, rank, team, played, won, drawn, lost
-        case goalsFor = "goals_for"
-        case goalsAgainst = "goals_against"
-        case goalDifference = "goal_difference"
-        case points
+        case rank, team, logo, form, played
+        case won = "win"
+        case drawn = "draw"
+        case lost = "lose"
+        case goalsFor = "goalsFor"
+        case goalsAgainst = "goalsagainst"
+        case goalDifference = "goalsDiff"
+        case points, description
     }
 }
 
@@ -186,5 +239,20 @@ struct PharmacyData: Codable, Identifiable {
             return nil
         }
         return (lat, lon)
+    }
+}
+
+// MARK: - Settings Service
+struct SettingsResponse: Codable {
+    let data: SettingsData
+    let error: Bool
+    let message: String?
+}
+
+struct SettingsData: Codable {
+    let logoMobil: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case logoMobil = "logo_mobil"
     }
 }

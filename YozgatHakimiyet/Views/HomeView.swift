@@ -42,9 +42,12 @@ struct HomeView: View {
                     }
                 }
             }
-            .navigationTitle("Yozgat Hakimiyet")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    LogoView()
+                }
+                
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         withAnimation {

@@ -3,47 +3,138 @@ import Combine
 
 struct BottomTabView: View {
     @Binding var showSideMenu: Bool
-    @State private var selectedTab = 0
+    @Binding var selectedTab: Int
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NewHomeView(showSideMenu: $showSideMenu)
-                .tabItem {
-                    Label("Ana Sayfa", systemImage: "house.fill")
+        ZStack {
+            // Ana içerik
+            Group {
+                switch selectedTab {
+                case 0:
+                    NewHomeView(showSideMenu: $showSideMenu)
+                case 1:
+                    BreakingNewsView(showSideMenu: $showSideMenu)
+                case 2:
+                    HeadlinesView(showSideMenu: $showSideMenu)
+                case 3:
+                    VideoListView(showSideMenu: $showSideMenu)
+                case 4:
+                    GalleryListView(showSideMenu: $showSideMenu)
+                case 5:
+                    SearchView(showSideMenu: $showSideMenu)
+                case 6:
+                    NavigationView {
+                        StandingsDetailView(showSideMenu: $showSideMenu, selectedTab: $selectedTab)
+                    }
+                case 7:
+                    AuthorsListView(showSideMenu: $showSideMenu)
+                default:
+                    NewHomeView(showSideMenu: $showSideMenu)
                 }
-                .tag(0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.bottom, (selectedTab == 6 || selectedTab == 7) ? 0 : 90)
             
-            BreakingNewsView(showSideMenu: $showSideMenu)
-                .tabItem {
-                    Label("Son Dakika", systemImage: "exclamationmark.triangle.fill")
+            // Özel Bottom Tab Bar - Standings ve Authors sayfalarında gösterilmez
+            if selectedTab != 6 && selectedTab != 7 {
+                VStack {
+                    Spacer()
+                    CustomTabBar(selectedTab: $selectedTab)
+                        .padding(.bottom, 8)
                 }
-                .tag(1)
-            
-            HeadlinesView(showSideMenu: $showSideMenu)
-                .tabItem {
-                    Label("Manşetler", systemImage: "newspaper.fill")
-                }
-                .tag(2)
-            
-            VideoListView(showSideMenu: $showSideMenu)
-                .tabItem {
-                    Label("Videolar", systemImage: "play.rectangle.fill")
-                }
-                .tag(3)
-            
-            GalleryListView(showSideMenu: $showSideMenu)
-                .tabItem {
-                    Label("Galeri", systemImage: "photo.on.rectangle")
-                }
-                .tag(4)
-            
-            SearchView(showSideMenu: $showSideMenu)
-                .tabItem {
-                    Label("Ara", systemImage: "magnifyingglass")
-                }
-                .tag(5)
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+            }
         }
-        .accentColor(.blue)
+    }
+}
+
+struct CustomTabBar: View {
+    @Binding var selectedTab: Int
+    @Namespace private var animation
+    
+    private let tabs: [(icon: String, title: String)] = [
+        ("house.fill", "Ana Sayfa"),
+        ("bolt.fill", "Son Dakika"),
+        ("newspaper.fill", "Manşetler"),
+        ("play.rectangle.fill", "Videolar"),
+        ("photo.on.rectangle", "Galeri"),
+        ("magnifyingglass", "Ara")
+    ]
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(tabs.enumerated()), id: \.offset) { index, tab in
+                TabBarButton(
+                    icon: tab.icon,
+                    title: tab.title,
+                    isSelected: selectedTab == index,
+                    animation: animation
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedTab = index
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .background(
+            ZStack {
+                // Profesyonel arka plan - tam genişlik, köşeler yuvarlak değil
+                Rectangle()
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: -5)
+                
+                // Üst border - ince çizgi
+                VStack {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(height: 0.5)
+                    Spacer()
+                }
+            }
+        )
+    }
+}
+
+struct TabBarButton: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    var animation: Namespace.ID
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                // Icon Container - Minimal ve profesyonel
+                ZStack {
+                    if isSelected {
+                        // Seçili durum için minimal arka plan
+                        Circle()
+                            .fill(Color.blue.opacity(0.12))
+                            .frame(width: 44, height: 44)
+                            .matchedGeometryEffect(id: "selectedTab", in: animation)
+                    }
+                    
+                    Image(systemName: icon)
+                        .font(.system(size: isSelected ? 22 : 20, weight: isSelected ? .semibold : .regular))
+                        .foregroundColor(isSelected ? .blue : Color(.systemGray))
+                        .scaleEffect(isSelected ? 1.1 : 1.0)
+                }
+                .frame(height: 44)
+
+                // Başlık - Her zaman göster ama seçili olan daha belirgin
+                Text(title)
+                    .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .blue : Color(.systemGray))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

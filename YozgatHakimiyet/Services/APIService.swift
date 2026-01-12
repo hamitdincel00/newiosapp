@@ -243,5 +243,81 @@ class APIService {
         }
         return try await performRequest(url: url, responseType: PharmacyResponse.self)
     }
+    
+    func fetchStandings(league: String = "super-lig") async throws -> StandingsResponse {
+        let params = ["league": league]
+        guard let url = buildServiceURL(path: "standings", parameters: params) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: StandingsResponse.self)
+    }
+    
+    func fetchAvailableLeagues() async throws -> LeaguesListResponse {
+        guard let url = buildServiceURL(path: "standings", parameters: [:]) else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: LeaguesListResponse.self)
+    }
+    
+    // MARK: - Settings
+    
+    func fetchSettings() async throws -> SettingsResponse {
+        guard let url = buildURL(endpoint: "settings") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: SettingsResponse.self)
+    }
+    
+    // MARK: - Authors
+    
+    func fetchAuthors(page: Int = 1, perPage: Int = 12, search: String? = nil) async throws -> AuthorResponse {
+        var components = URLComponents(string: "\(config.baseURL)/api/v2/authors")
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "apiKey", value: config.apiKey),
+            URLQueryItem(name: "page", value: "\(page)"),
+            URLQueryItem(name: "per_page", value: "\(perPage)")
+        ]
+        
+        if let search = search, !search.isEmpty {
+            queryItems.append(URLQueryItem(name: "search", value: search))
+        }
+        
+        components?.queryItems = queryItems
+        
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: AuthorResponse.self)
+    }
+    
+    func fetchAuthorDetail(id: Int) async throws -> AuthorDetailResponse {
+        guard let url = buildURL(endpoint: "authors/\(id)") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: AuthorDetailResponse.self)
+    }
+    
+    func fetchAuthorArticles(authorId: Int, page: Int = 1, limit: Int = 10) async throws -> AuthorArticlesResponse {
+        var components = URLComponents(string: "\(config.baseURL)/api/v2/authors/\(authorId)/articles")
+        components?.queryItems = [
+            URLQueryItem(name: "apiKey", value: config.apiKey),
+            URLQueryItem(name: "page", value: "\(page)"),
+            URLQueryItem(name: "limit", value: "\(limit)")
+        ]
+        
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: AuthorArticlesResponse.self)
+    }
+    
+    // MARK: - Articles
+    
+    func fetchArticleDetail(id: Int) async throws -> ArticleDetailResponse {
+        guard let url = buildURL(endpoint: "articles/\(id)") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: ArticleDetailResponse.self)
+    }
 }
 

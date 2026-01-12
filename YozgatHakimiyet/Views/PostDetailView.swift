@@ -1,13 +1,12 @@
 import SwiftUI
 import Combine
 import WebKit
+import UIKit
 
 struct PostDetailView: View {
     let postId: Int
     @StateObject private var viewModel = PostDetailViewModel()
     @Environment(\.dismiss) var dismiss
-    @State private var showShareSheet = false
-    @State private var shareItems: [Any] = []
     
     var body: some View {
         GeometryReader { geometry in
@@ -102,17 +101,56 @@ struct PostDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.post != nil {
                     Button(action: {
                         if let post = viewModel.post {
-                            ShareHelper.sharePost(
-                                title: post.name,
-                                url: post.url,
-                                imageUrl: post.image.cropped.large
-                            ) { items in
-                                shareItems = items
-                                showShareSheet = true
+                            print("📤 PostDetailView - Sharing post: \(post.name)")
+                            print("📤 PostDetailView - Post URL: \(post.url)")
+                            print("📤 PostDetailView - Post Slug: \(post.slug)")
+                            print("📤 PostDetailView - Image URL: \(post.image.cropped.large)")
+                            
+                            // URL boşsa slug'dan URL oluştur
+                            let postURL: String
+                            if post.url.isEmpty {
+                                // Slug'dan URL oluştur
+                                let baseURL = Config.shared.baseURL
+                                postURL = "\(baseURL)/\(post.slug)"
+                                print("📤 PostDetailView - URL was empty, created from slug: \(postURL)")
+                            } else {
+                                postURL = post.url
+                            }
+                            
+                            // ViewController'ı bul
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let window = windowScene.windows.first,
+                               let rootViewController = window.rootViewController {
+                                var topViewController = rootViewController
+                                while let presented = topViewController.presentedViewController {
+                                    topViewController = presented
+                                }
+                                
+                                ShareHelper.sharePost(
+                                    title: post.name,
+                                    url: postURL,
+                                    imageUrl: post.image.cropped.large,
+                                    onViewController: topViewController
+                                ) { items in
+                                    print("📤 PostDetailView - Share completed with \(items.count) items")
+                                }
+                            } else {
+                                // Fallback - eski yöntem
+                                ShareHelper.sharePost(
+                                    title: post.name,
+                                    url: postURL,
+                                    imageUrl: post.image.cropped.large
+                                ) { items in
+                                    print("📤 PostDetailView - Share completed with \(items.count) items (fallback)")
+                                }
                             }
                         }
                     }) {
@@ -121,9 +159,6 @@ struct PostDetailView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $showShareSheet) {
-            ShareSheet(items: shareItems)
         }
         .task {
             await viewModel.loadPost(id: postId)

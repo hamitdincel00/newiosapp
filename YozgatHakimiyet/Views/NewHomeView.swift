@@ -9,6 +9,13 @@ struct NewHomeView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Manşetler Slider
+                    if !viewModel.headlines.isEmpty {
+                        HeadlinesSliderView(headlines: viewModel.headlines)
+                            .frame(height: 380)
+                            .padding(.bottom, 10)
+                    }
+                    
                     // Featured Post
                     if let featuredPost = viewModel.featuredPosts.first {
                         FeaturedPostSection(post: featuredPost)
@@ -24,6 +31,11 @@ struct NewHomeView: View {
                         GalleryCarouselSection(galleries: viewModel.latestGalleries)
                     }
                     
+                    // Authors Section
+                    if !viewModel.authors.isEmpty {
+                        AuthorsSection(authors: viewModel.authors, showSideMenu: $showSideMenu)
+                    }
+                    
                     // Quick Access Widgets
                     QuickAccessSection()
                     
@@ -31,8 +43,12 @@ struct NewHomeView: View {
                     LatestNewsSection(posts: viewModel.latestPosts)
                 }
             }
-            .navigationTitle("Ana Sayfa")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    LogoView()
+                }
+                
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         withAnimation {
@@ -52,6 +68,180 @@ struct NewHomeView: View {
                 await viewModel.loadAllContent()
             }
         }
+    }
+}
+
+// MARK: - Headlines Slider View
+struct HeadlinesSliderView: View {
+    let headlines: [Post]
+    @State private var currentIndex = 0
+    @State private var timer: Timer?
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                TabView(selection: $currentIndex) {
+                    ForEach(Array(headlines.prefix(10).enumerated()), id: \.element.id) { index, headline in
+                        NavigationLink(destination: PostDetailView(postId: headline.id)) {
+                            ZStack(alignment: .bottomLeading) {
+                                AsyncImage(url: URL(string: headline.image.cropped.large)) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        Rectangle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [Color.gray.opacity(0.3), Color.gray.opacity(0.5)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .overlay(ProgressView().tint(.white))
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    case .failure:
+                                        Rectangle()
+                                            .fill(Color.gray.opacity(0.3))
+                                            .overlay(
+                                                Image(systemName: "photo")
+                                                    .font(.system(size: 40))
+                                                    .foregroundColor(.gray)
+                                            )
+                                    @unknown default:
+                                        Rectangle()
+                                            .fill(Color.gray.opacity(0.3))
+                                    }
+                                }
+                                .frame(width: geometry.size.width, height: 380)
+                                .clipped()
+                                
+                                // Gradient Overlay - Daha dramatik
+                                LinearGradient(
+                                    colors: [
+                                        Color.clear,
+                                        Color.black.opacity(0.3),
+                                        Color.black.opacity(0.7),
+                                        Color.black.opacity(0.9)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                
+                                // Content
+                                VStack(alignment: .leading, spacing: 12) {
+                                    // Badge
+                                    HStack {
+                                        Image(systemName: "star.fill")
+                                            .font(.caption2)
+                                        Text("MANŞET")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .tracking(1)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [Color.red, Color.orange],
+                                                    startPoint: .leading,
+                                                    endPoint: .trailing
+                                                )
+                                            )
+                                            .shadow(color: Color.red.opacity(0.5), radius: 8, x: 0, y: 4)
+                                    )
+                                    
+                                    // Title
+                                    Text(headline.name)
+                                        .font(.system(size: 22, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .lineLimit(3)
+                                        .multilineTextAlignment(.leading)
+                                        .shadow(color: Color.black.opacity(0.5), radius: 4, x: 0, y: 2)
+                                    
+                                    // Meta Info
+                                    HStack(spacing: 16) {
+                                        if let author = headline.author {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "person.fill")
+                                                    .font(.caption2)
+                                                Text(author.name)
+                                                    .font(.caption)
+                                            }
+                                            .foregroundColor(.white.opacity(0.9))
+                                        }
+                                        
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "calendar")
+                                                .font(.caption2)
+                                            Text(headline.createdAt.prefix(10))
+                                                .font(.caption)
+                                        }
+                                        .foregroundColor(.white.opacity(0.9))
+                                        
+                                        Spacer()
+                                    }
+                                }
+                                .padding(20)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .cornerRadius(0)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .tag(index)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .indexViewStyle(.page(backgroundDisplayMode: .never))
+                .onAppear {
+                    startTimer()
+                }
+                .onDisappear {
+                    stopTimer()
+                }
+                .onChange(of: currentIndex) { _ in
+                    resetTimer()
+                }
+                
+                // Custom Page Indicator
+                HStack(spacing: 8) {
+                    ForEach(0..<min(headlines.count, 10), id: \.self) { index in
+                        Circle()
+                            .fill(currentIndex == index ? Color.white : Color.white.opacity(0.4))
+                            .frame(width: currentIndex == index ? 8 : 6, height: currentIndex == index ? 8 : 6)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: currentIndex)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+                )
+                .padding(.bottom, 20)
+            }
+        }
+    }
+    
+    private func startTimer() {
+        timer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                currentIndex = (currentIndex + 1) % min(headlines.count, 10)
+            }
+        }
+    }
+    
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+    
+    private func resetTimer() {
+        stopTimer()
+        startTimer()
     }
 }
 
@@ -120,7 +310,7 @@ struct VideoCarouselSection: View {
             HStack {
                 Image(systemName: "play.rectangle.fill")
                     .foregroundColor(.red)
-                Text("Son Videolar")
+                Text("Videolar")
                     .font(.title3)
                     .fontWeight(.bold)
                 Spacer()
@@ -191,7 +381,7 @@ struct GalleryCarouselSection: View {
             HStack {
                 Image(systemName: "photo.on.rectangle")
                     .foregroundColor(.blue)
-                Text("Foto Galeriler")
+                Text("Foto Galeri")
                     .font(.title3)
                     .fontWeight(.bold)
                 Spacer()
@@ -337,26 +527,133 @@ struct LatestNewsSection: View {
     }
 }
 
+// MARK: - Authors Section
+struct AuthorsSection: View {
+    let authors: [AuthorDetail]
+    @Binding var showSideMenu: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "person.2.fill")
+                    .foregroundColor(.purple)
+                Text("Yazarlar")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                Spacer()
+                NavigationLink(destination: AuthorsListView(showSideMenu: $showSideMenu)) {
+                    Text("Tümü")
+                        .font(.subheadline)
+                        .foregroundColor(.blue)
+                }
+            }
+            .padding(.horizontal)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(authors.prefix(6)) { author in
+                        NavigationLink(destination: AuthorDetailView(authorId: author.id, showSideMenu: $showSideMenu)) {
+                            AuthorHomeCard(author: author)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+}
+
+struct AuthorHomeCard: View {
+    let author: AuthorDetail
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            // Author Image
+            AsyncImage(url: URL(string: author.imageURL)) { phase in
+                switch phase {
+                case .empty:
+                    ZStack {
+                        Circle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(width: 80, height: 80)
+                        ProgressView()
+                    }
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.purple.opacity(0.3), Color.blue.opacity(0.3)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 80, height: 80)
+                        Text(author.name.prefix(1))
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundColor(.primary)
+                    }
+                @unknown default:
+                    Circle()
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(width: 80, height: 80)
+                }
+            }
+            .frame(width: 80, height: 80)
+            .clipShape(Circle())
+            .overlay(
+                Circle()
+                    .stroke(Color.purple.opacity(0.3), lineWidth: 2)
+            )
+            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+            
+            // Author Name
+            Text(author.name)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .frame(width: 100)
+        }
+    }
+}
+
 // MARK: - ViewModel
 @MainActor
 class NewHomeViewModel: ObservableObject {
+    @Published var headlines: [Post] = []
     @Published var featuredPosts: [Post] = []
     @Published var latestVideos: [Video] = []
     @Published var latestGalleries: [Gallery] = []
     @Published var latestPosts: [Post] = []
+    @Published var authors: [AuthorDetail] = []
     @Published var isLoading = false
+    @Published var appLogo: String?
     
     private let apiService = APIService.shared
     
     func loadAllContent() async {
         isLoading = true
         
+        async let headlinesTask = try? apiService.fetchHeadlines()
         async let featured = try? apiService.fetchFeaturedPosts()
         async let videos = try? apiService.fetchLatestVideos(limit: 5)
         async let galleries = try? apiService.fetchLatestGalleries(limit: 5)
         async let posts = try? apiService.fetchLatestPosts(limit: 10)
+        async let authorsTask = try? apiService.fetchAuthors(perPage: 6)
+        async let settings = try? apiService.fetchSettings()
         
-        let (featuredResult, videosResult, galleriesResult, postsResult) = await (featured, videos, galleries, posts)
+        let (headlinesResult, featuredResult, videosResult, galleriesResult, postsResult, authorsResult, settingsResult) = await (headlinesTask, featured, videos, galleries, posts, authorsTask, settings)
+        
+        if let headlinesResult = headlinesResult {
+            headlines = headlinesResult.data
+        }
         
         if let featuredResult = featuredResult {
             featuredPosts = featuredResult.data
@@ -372,6 +669,14 @@ class NewHomeViewModel: ObservableObject {
         
         if let postsResult = postsResult {
             latestPosts = postsResult.data
+        }
+        
+        if let authorsResult = authorsResult {
+            authors = authorsResult.data
+        }
+        
+        if let settingsResult = settingsResult {
+            appLogo = settingsResult.data.logoMobil
         }
         
         isLoading = false

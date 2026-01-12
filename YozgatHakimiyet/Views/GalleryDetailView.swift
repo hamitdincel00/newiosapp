@@ -119,6 +119,10 @@ struct GalleryDetailView: View {
         .navigationTitle("Foto Galeri")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.gallery != nil {
                     Button(action: {
@@ -128,8 +132,11 @@ struct GalleryDetailView: View {
                                 url: gallery.url,
                                 imageUrl: gallery.image.cropped.large
                             ) { items in
-                                shareItems = items
-                                showShareSheet = true
+                                // Items'ın boş olmadığından emin ol
+                                if !items.isEmpty {
+                                    shareItems = items
+                                    showShareSheet = true
+                                }
                             }
                         }
                     }) {
@@ -140,7 +147,7 @@ struct GalleryDetailView: View {
             }
         }
         .sheet(isPresented: $showShareSheet) {
-            ShareSheet(items: shareItems)
+            ShareSheet(items: shareItems, isPresented: $showShareSheet)
         }
         .fullScreenCover(isPresented: $showPhotoViewer) {
             if let gallery = viewModel.gallery {
@@ -198,8 +205,12 @@ struct GalleryListView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Foto Galeri")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    LogoView()
+                }
+                
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         withAnimation {

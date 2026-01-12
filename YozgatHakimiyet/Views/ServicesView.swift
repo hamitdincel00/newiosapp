@@ -26,8 +26,12 @@ struct ServicesView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Servisler")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    LogoView()
+                }
+                
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         withAnimation {

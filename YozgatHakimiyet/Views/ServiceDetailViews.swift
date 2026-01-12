@@ -64,8 +64,12 @@ struct WeatherDetailView: View {
             }
             .padding()
         }
-        .navigationTitle("Hava Durumu")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+        }
         .sheet(isPresented: $showLocationPicker) {
             LocationPickerView(isPresented: $showLocationPicker, needsDistrict: false) {
                 Task {
@@ -259,8 +263,12 @@ struct PrayerTimesDetailView: View {
             }
             .padding()
         }
-        .navigationTitle("Namaz Vakitleri")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+        }
         .sheet(isPresented: $showLocationPicker) {
             LocationPickerView(isPresented: $showLocationPicker, needsDistrict: true) {
                 Task {
@@ -331,8 +339,12 @@ struct CurrencyDetailView: View {
                 CurrencyDetailRow(currency: currency)
             }
         }
-        .navigationTitle("Döviz Kurları")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+        }
         .refreshable {
             await viewModel.loadCurrencies()
         }
@@ -422,8 +434,12 @@ struct PharmacyDetailView: View {
                 PharmacyRow(pharmacy: pharmacy)
             }
         }
-        .navigationTitle("Nöbetçi Eczane")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+        }
         .sheet(isPresented: $showLocationPicker) {
             LocationPickerView(isPresented: $showLocationPicker, needsDistrict: true) {
                 Task {
@@ -491,6 +507,390 @@ class PharmacyDetailViewModel: ObservableObject {
             pharmacies = response.data
         } catch {
             print("Error loading pharmacies: \(error)")
+        }
+        isLoading = false
+    }
+}
+
+// MARK: - Standings Detail View
+struct StandingsDetailView: View {
+    @Binding var showSideMenu: Bool
+    @Binding var selectedTab: Int
+    @StateObject private var viewModel = StandingsDetailViewModel()
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                // League Selector - Modern Design
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "sportscourt.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.blue)
+                        
+                        Text("Lig Seçimi")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                    }
+                    
+                    // Custom Picker Button
+                    Menu {
+                        ForEach(viewModel.availableLeagues) { league in
+                            Button(action: {
+                                viewModel.selectedLeague = league.slug
+                                Task {
+                                    await viewModel.loadStandings(league: league.slug)
+                                }
+                            }) {
+                                HStack {
+                                    Text(league.league.name)
+                                    if viewModel.selectedLeague == league.slug {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(viewModel.currentLeagueName)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.blue)
+                                .rotationEffect(.degrees(viewModel.selectedLeague.isEmpty ? 0 : 0))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.blue.opacity(0.3),
+                                                    Color.purple.opacity(0.2)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1.5
+                                        )
+                                )
+                        )
+                        .shadow(color: Color.blue.opacity(0.1), radius: 8, x: 0, y: 4)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(.systemGray6).opacity(0.5),
+                            Color(.systemBackground)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                
+                // Divider
+                Divider()
+                    .background(Color(.systemGray4))
+                
+                // Table Header
+                HStack(spacing: 8) {
+                    Text("Sıra")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 35)
+                    
+                    Text("Takım")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Text("O")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 25)
+                    Text("G")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 25)
+                    Text("B")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 25)
+                    Text("M")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 25)
+                    Text("A")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 30)
+                    Text("Y")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 30)
+                    Text("P")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .frame(width: 35)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray5))
+                
+                // Teams
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding()
+                } else if let errorMessage = viewModel.errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 50))
+                            .foregroundColor(.orange)
+                        Text(errorMessage)
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                } else if viewModel.standings.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "tray")
+                            .font(.system(size: 50))
+                            .foregroundColor(.secondary)
+                        Text("Puan durumu verisi bulunamadı")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                } else {
+                    ForEach(viewModel.standings) { team in
+                        StandingsDetailRow(team: team, totalTeams: viewModel.standings.count)
+                    }
+                }
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                LogoView()
+            }
+            
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    withAnimation {
+                        selectedTab = 0
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Geri")
+                    }
+                    .foregroundColor(.blue)
+                }
+            }
+        }
+        .refreshable {
+            await viewModel.loadStandings(league: viewModel.selectedLeague)
+        }
+        .task {
+            await viewModel.loadAvailableLeagues()
+            await viewModel.loadStandings(league: viewModel.selectedLeague)
+        }
+    }
+}
+
+struct StandingsDetailRow: View {
+    let team: TeamStanding
+    let totalTeams: Int
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            // Rank
+            Text("\(team.rank)")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .frame(width: 35)
+            
+            // Team Logo
+            if let logoURL = team.logo, let url = URL(string: logoURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        Image(systemName: "sportscourt.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                            .frame(width: 24, height: 24)
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                    case .failure:
+                        Image(systemName: "sportscourt.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                            .frame(width: 24, height: 24)
+                    @unknown default:
+                        Image(systemName: "sportscourt.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                            .frame(width: 24, height: 24)
+                    }
+                }
+                .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: "sportscourt.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.gray)
+                    .frame(width: 24, height: 24)
+            }
+            
+            // Team Name
+            Text(team.team)
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1)
+            
+            // Matches Played
+            Text("\(team.played)")
+                .font(.subheadline)
+                .frame(width: 25)
+            
+            // Won
+            Text("\(team.won)")
+                .font(.subheadline)
+                .foregroundColor(.green)
+                .frame(width: 25)
+            
+            // Drawn
+            Text("\(team.drawn)")
+                .font(.subheadline)
+                .foregroundColor(.orange)
+                .frame(width: 25)
+            
+            // Lost
+            Text("\(team.lost)")
+                .font(.subheadline)
+                .foregroundColor(.red)
+                .frame(width: 25)
+            
+            // Goals For
+            Text("\(team.goalsFor)")
+                .font(.subheadline)
+                .frame(width: 30)
+            
+            // Goal Difference
+            Text("\(team.goalDifference >= 0 ? "+" : "")\(team.goalDifference)")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(team.goalDifference >= 0 ? .green : .red)
+                .frame(width: 30)
+            
+            // Points
+            Text("\(team.points)")
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(.blue)
+                .frame(width: 35)
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(
+            team.rank <= 4 ? Color.blue.opacity(0.1) :
+            team.rank <= 6 ? Color.orange.opacity(0.1) :
+            team.rank >= totalTeams - 3 ? Color.red.opacity(0.1) :
+            Color(.systemBackground)
+        )
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(.systemGray5)),
+            alignment: .bottom
+        )
+    }
+}
+
+@MainActor
+class StandingsDetailViewModel: ObservableObject {
+    @Published var standings: [TeamStanding] = []
+    @Published var availableLeagues: [LeagueItem] = []
+    @Published var selectedLeague: String = "super-lig"
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    
+    var currentLeagueName: String {
+        availableLeagues.first(where: { $0.slug == selectedLeague })?.league.name ?? "Süper Lig"
+    }
+    
+    private let apiService = APIService.shared
+    
+    func loadAvailableLeagues() async {
+        do {
+            let response = try await apiService.fetchAvailableLeagues()
+            
+            // Response'dan sadece lig bilgilerini çıkar
+            // data dictionary'sinin key'leri lig slug'ları, value'ları StandingsData
+            availableLeagues = response.data.map { (slug, standingsData) in
+                LeagueItem(league: standingsData.league, slug: slug)
+            }
+            .sorted { $0.league.name < $1.league.name }
+            
+            // Süper Lig'i en başa taşı
+            if let superLigIndex = availableLeagues.firstIndex(where: { $0.slug == "super-lig" }) {
+                let superLig = availableLeagues.remove(at: superLigIndex)
+                availableLeagues.insert(superLig, at: 0)
+            }
+            
+            // Süper Lig'i default olarak seç
+            if selectedLeague.isEmpty || !availableLeagues.contains(where: { $0.slug == selectedLeague }) {
+                selectedLeague = "super-lig"
+            }
+        } catch {
+            print("Error loading available leagues: \(error)")
+            // Hata durumunda en azından Süper Lig'i ekle
+            let superLig = LeagueItem(
+                league: LeagueInfo(name: "Süper Lig", country: "Turkey", logo: nil, flag: nil),
+                slug: "super-lig"
+            )
+            availableLeagues = [superLig]
+            selectedLeague = "super-lig"
+        }
+    }
+    
+    func loadStandings(league: String = "super-lig") async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let response = try await apiService.fetchStandings(league: league)
+            standings = response.data.standings
+            print("Standings loaded: \(standings.count) teams for league: \(league)")
+            if standings.isEmpty {
+                errorMessage = "Puan durumu verisi bulunamadı"
+            }
+        } catch {
+            errorMessage = "Puan durumu yüklenirken bir hata oluştu"
+            print("Error loading standings: \(error)")
+            print("Error details: \(error.localizedDescription)")
+            if let decodingError = error as? DecodingError {
+                print("Decoding error: \(decodingError)")
+            }
         }
         isLoading = false
     }
