@@ -41,6 +41,15 @@ struct NewHomeView: View {
                     
                     // Latest News
                     LatestNewsSection(posts: viewModel.latestPosts)
+                    
+                    // Popular Posts (Çok Okunanlar)
+                    if !viewModel.popularPosts.isEmpty {
+                        PopularPostsSection(posts: viewModel.popularPosts)
+                    }
+                    
+                    // Footer
+                    AppFooter()
+                        .padding(.top, 20)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -624,6 +633,106 @@ struct AuthorHomeCard: View {
     }
 }
 
+// MARK: - Popular Posts Section
+struct PopularPostsSection: View {
+    let posts: [Post]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "flame.fill")
+                    .foregroundColor(.orange)
+                Text("Çok Okunanlar")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            .padding(.horizontal)
+            
+            LazyVStack(spacing: 16) {
+                ForEach(posts) { post in
+                    NavigationLink(destination: PostDetailView(postId: post.id)) {
+                        PopularPostCard(post: post)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+}
+
+struct PopularPostCard: View {
+    let post: Post
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Post Image
+            AsyncImage(url: URL(string: post.image.cropped.medium)) { phase in
+                switch phase {
+                case .empty:
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .overlay(ProgressView())
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                case .failure:
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .overlay(
+                            Image(systemName: "photo")
+                                .foregroundColor(.gray)
+                        )
+                @unknown default:
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                }
+            }
+            .frame(width: 120, height: 100)
+            .cornerRadius(10)
+            .clipped()
+            
+            // Content
+            VStack(alignment: .leading, spacing: 8) {
+                // Title
+                Text(post.name)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                
+                // Meta Info
+                HStack(spacing: 12) {
+                    if let author = post.author {
+                        Label(author.name, systemImage: "person.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if !post.createdAt.isEmpty {
+                        Label(String(post.createdAt.prefix(10)), systemImage: "calendar")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        )
+    }
+}
+
 // MARK: - ViewModel
 @MainActor
 class NewHomeViewModel: ObservableObject {
@@ -632,6 +741,7 @@ class NewHomeViewModel: ObservableObject {
     @Published var latestVideos: [Video] = []
     @Published var latestGalleries: [Gallery] = []
     @Published var latestPosts: [Post] = []
+    @Published var popularPosts: [Post] = []
     @Published var authors: [AuthorDetail] = []
     @Published var isLoading = false
     @Published var appLogo: String?
@@ -646,10 +756,11 @@ class NewHomeViewModel: ObservableObject {
         async let videos = try? apiService.fetchLatestVideos(limit: 5)
         async let galleries = try? apiService.fetchLatestGalleries(limit: 5)
         async let posts = try? apiService.fetchLatestPosts(limit: 10)
+        async let popularTask = try? apiService.fetchPopularPosts()
         async let authorsTask = try? apiService.fetchAuthors(perPage: 6)
         async let settings = try? apiService.fetchSettings()
         
-        let (headlinesResult, featuredResult, videosResult, galleriesResult, postsResult, authorsResult, settingsResult) = await (headlinesTask, featured, videos, galleries, posts, authorsTask, settings)
+        let (headlinesResult, featuredResult, videosResult, galleriesResult, postsResult, popularResult, authorsResult, settingsResult) = await (headlinesTask, featured, videos, galleries, posts, popularTask, authorsTask, settings)
         
         if let headlinesResult = headlinesResult {
             headlines = headlinesResult.data
@@ -671,6 +782,10 @@ class NewHomeViewModel: ObservableObject {
             latestPosts = postsResult.data
         }
         
+        if let popularResult = popularResult {
+            popularPosts = popularResult.data
+        }
+        
         if let authorsResult = authorsResult {
             authors = authorsResult.data
         }
@@ -680,5 +795,51 @@ class NewHomeViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+}
+
+// MARK: - App Footer
+struct AppFooter: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top Divider
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(height: 1)
+            
+            VStack(spacing: 16) {
+                // Copyright Text
+                VStack(spacing: 8) {
+                    Text("© 2025 Yozgat Hakimiyet")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    Text("Tüm hakları saklıdır. İçerikler kaynak gösterilme kopyalanamaz.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                
+                // Developer Info
+                HStack(spacing: 4) {
+                    Text("Haber Yazılımı:")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                    Text("TE Bilişim")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.blue)
+                }
+                .padding(.bottom, 20)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background(
+            Color(.systemBackground)
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: -5)
+        )
     }
 }

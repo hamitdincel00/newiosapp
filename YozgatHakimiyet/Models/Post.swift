@@ -41,13 +41,41 @@ struct Post: Codable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(Int.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
-        slug = try container.decode(String.self, forKey: .slug)
+        
+        // slug - yoksa url'den çıkar veya name'den oluştur
+        if let slugValue = try? container.decode(String.self, forKey: .slug), !slugValue.isEmpty {
+            slug = slugValue
+        } else if let urlValue = try? container.decodeIfPresent(String.self, forKey: .url), !urlValue.isEmpty {
+            // URL'den slug çıkar (örn: /haber-slug -> haber-slug)
+            slug = urlValue.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        } else {
+            // Name'den slug oluştur
+            let nameValue = try container.decode(String.self, forKey: .name)
+            slug = nameValue.lowercased()
+                .replacingOccurrences(of: " ", with: "-")
+                .replacingOccurrences(of: "ç", with: "c")
+                .replacingOccurrences(of: "ğ", with: "g")
+                .replacingOccurrences(of: "ı", with: "i")
+                .replacingOccurrences(of: "ö", with: "o")
+                .replacingOccurrences(of: "ş", with: "s")
+                .replacingOccurrences(of: "ü", with: "u")
+        }
+        
         url = try container.decodeIfPresent(String.self, forKey: .url)
         description = try container.decodeIfPresent(String.self, forKey: .description)
-        categories = try container.decodeIfPresent([String: String].self, forKey: .categories) ?? [:]
         directLink = try container.decodeIfPresent(String.self, forKey: .directLink)
         author = try container.decodeIfPresent(Author.self, forKey: .author)
-        createdAt = try container.decode(String.self, forKey: .createdAt)
+        
+        // categories - farklı formatlar olabilir
+        if let categoriesDict = try? container.decodeIfPresent([String: String].self, forKey: .categories) {
+            categories = categoriesDict
+        } else {
+            // categories yoksa boş dictionary
+            categories = [:]
+        }
+        
+        // createdAt - optional yapıldı, yoksa boş string
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
         
         // image hem string hem de PostImage objesi olabilir
@@ -64,8 +92,21 @@ struct Post: Codable, Identifiable {
                     fives: imageString
                 )
             )
+        } else if let imageObject = try? container.decode(PostImage.self, forKey: .image) {
+            image = imageObject
         } else {
-            image = try container.decode(PostImage.self, forKey: .image)
+            // Hiç image yoksa placeholder
+            image = PostImage(
+                original: "",
+                cropped: CroppedImages(
+                    thumb: "",
+                    medium: "",
+                    large: "",
+                    square: "",
+                    vertical: "",
+                    fives: ""
+                )
+            )
         }
         
         // headline optional

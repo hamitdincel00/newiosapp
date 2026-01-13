@@ -97,6 +97,13 @@ class APIService {
         return try await performRequest(url: url, responseType: PostResponse.self)
     }
     
+    func fetchPopularPosts() async throws -> PostResponse {
+        guard let url = buildURL(endpoint: "posts/popular") else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: PostResponse.self)
+    }
+    
     func fetchPostDetail(id: Int) async throws -> PostDetailResponse {
         guard let url = buildURL(endpoint: "posts/\(id)") else {
             throw URLError(.badURL)
