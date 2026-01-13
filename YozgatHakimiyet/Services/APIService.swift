@@ -23,18 +23,36 @@ class APIService {
             // HTML yanıt kontrolü (hem status hem de content-type)
             if httpResponse.statusCode >= 400 || isHTML {
                 let responseString = String(data: data, encoding: .utf8) ?? ""
+                
+                // 500 hatası için daha detaylı log
+                if httpResponse.statusCode == 500 {
+                    print("⚠️ API Server Error (500) - URL: \(url.absoluteString)")
+                    if !responseString.isEmpty {
+                        print("⚠️ Response: \(responseString.prefix(500))")
+                    }
+                }
+                
                 if responseString.trimmingCharacters(in: .whitespaces).hasPrefix("<") || isHTML {
-                    print("API Error - HTML response received. Status: \(httpResponse.statusCode), URL: \(url.absoluteString)")
+                    print("⚠️ API Error - HTML response received. Status: \(httpResponse.statusCode), URL: \(url.absoluteString)")
+                    // 500 hatası için daha açıklayıcı mesaj
+                    if httpResponse.statusCode == 500 {
+                        throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Sunucu hatası (500). Lütfen daha sonra tekrar deneyin."])
+                    }
                     throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server returned HTML instead of JSON"])
                 }
                 
                 // JSON error response kontrolü
                 if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     if let message = errorJson["message"] as? String {
-                        print("API Error - Status: \(httpResponse.statusCode), Message: \(message)")
+                        print("⚠️ API Error - Status: \(httpResponse.statusCode), Message: \(message)")
                     }
                 } else if !responseString.isEmpty {
-                    print("API Error - Status: \(httpResponse.statusCode), Response: \(responseString.prefix(300))")
+                    print("⚠️ API Error - Status: \(httpResponse.statusCode), Response: \(responseString.prefix(300))")
+                }
+                
+                // 500 hatası için özel mesaj
+                if httpResponse.statusCode == 500 {
+                    throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Sunucu hatası (500). Lütfen daha sonra tekrar deneyin."])
                 }
                 
                 throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
@@ -325,6 +343,109 @@ class APIService {
             throw URLError(.badURL)
         }
         return try await performRequest(url: url, responseType: ArticleDetailResponse.self)
+    }
+    
+    // MARK: - Comments
+    
+    /// Yorumları listele
+    func fetchComments(referenceId: Int, referenceType: String, page: Int = 1, perPage: Int = 10) async throws -> CommentResponse {
+        var components = URLComponents(string: "\(config.baseURL)/api/v2/comments")
+        
+        // reference_type'ı content_type formatına çevir (article -> Article, post -> Post, etc.)
+        let contentType = referenceType.prefix(1).uppercased() + referenceType.dropFirst()
+        
+        components?.queryItems = [
+            URLQueryItem(name: "apiKey", value: config.apiKey),
+            URLQueryItem(name: "reference_id", value: "\(referenceId)"),
+            URLQueryItem(name: "reference_type", value: referenceType),
+            URLQueryItem(name: "content_type", value: contentType), // API hem reference_type hem content_type bekliyor olabilir
+            URLQueryItem(name: "page", value: "\(page)"),
+            URLQueryItem(name: "per_page", value: "\(perPage)")
+        ]
+        
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: CommentResponse.self)
+    }
+    
+    /// Yorum sayısını al
+    func getCommentCount(referenceId: Int, referenceType: String) async throws -> CommentCountResponse {
+        var components = URLComponents(string: "\(config.baseURL)/api/v2/comments/count")
+        
+        // reference_type'ı content_type formatına çevir
+        let contentType = referenceType.prefix(1).uppercased() + referenceType.dropFirst()
+        
+        components?.queryItems = [
+            URLQueryItem(name: "apiKey", value: config.apiKey),
+            URLQueryItem(name: "reference_id", value: "\(referenceId)"),
+            URLQueryItem(name: "reference_type", value: referenceType),
+            URLQueryItem(name: "content_type", value: contentType) // API hem reference_type hem content_type bekliyor olabilir
+        ]
+        
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+        return try await performRequest(url: url, responseType: CommentCountResponse.self)
+    }
+    
+    /// Yeni yorum ekle
+    func addComment(request: AddCommentRequest) async throws -> AddCommentResponse {
+        var components = URLComponents(string: "\(config.baseURL)/api/v2/comments")
+        components?.queryItems = [
+            URLQueryItem(name: "apiKey", value: config.apiKey)
+        ]
+        
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        urlRequest.httpBody = try encoder.encode(request)
+        
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+            let responseString = String(data: data, encoding: .utf8) ?? ""
+            print("API Error - Add Comment - Status: \(httpResponse.statusCode), Response: \(responseString.prefix(300))")
+            throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
+        }
+        
+        return try JSONDecoder().decode(AddCommentResponse.self, from: data)
+    }
+    
+    /// Yorum beğen/beğenme
+    func likeComment(commentId: Int, field: String) async throws -> LikeCommentResponse {
+        var components = URLComponents(string: "\(config.baseURL)/api/v2/comments/\(commentId)/like")
+        components?.queryItems = [
+            URLQueryItem(name: "apiKey", value: config.apiKey)
+        ]
+        
+        guard let url = components?.url else {
+            throw URLError(.badURL)
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let requestBody = LikeCommentRequest(field: field)
+        urlRequest.httpBody = try JSONEncoder().encode(requestBody)
+        
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+            let responseString = String(data: data, encoding: .utf8) ?? ""
+            print("API Error - Like Comment - Status: \(httpResponse.statusCode), Response: \(responseString.prefix(300))")
+            throw NSError(domain: "APIService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP \(httpResponse.statusCode)"])
+        }
+        
+        return try JSONDecoder().decode(LikeCommentResponse.self, from: data)
     }
 }
 

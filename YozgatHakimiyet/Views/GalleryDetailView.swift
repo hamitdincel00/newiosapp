@@ -104,6 +104,12 @@ struct GalleryDetailView: View {
                                 }
                                 .buttonStyle(PlainButtonStyle())
                             }
+                            
+                            // Comments Section
+                            if let gallery = viewModel.gallery {
+                                CommentsView(referenceId: gallery.id, referenceType: "gallery")
+                                    .padding(.top, 20)
+                            }
                         }
                     } else if viewModel.isLoading {
                         ProgressView()

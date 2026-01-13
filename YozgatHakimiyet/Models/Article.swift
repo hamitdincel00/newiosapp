@@ -113,10 +113,10 @@ struct ArticleDetail: Codable, Identifiable {
     }
     
     // Default görsel URL'i
-    var imageURL: String {
-        if let image = image {
+    var imageURL: String? {
+        if let image = image, !image.cropped.large.isEmpty {
             return image.cropped.large
         }
-        return "https://via.placeholder.com/800x600?text=Article"
+        return nil // Placeholder URL yerine nil döndür
     }
 }

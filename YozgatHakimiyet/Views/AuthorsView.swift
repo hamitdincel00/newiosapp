@@ -11,15 +11,17 @@ struct AuthorsListView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Search Bar
-                if viewModel.authors.isEmpty && !viewModel.isLoading {
-                    SearchBar(text: $searchText, onSearchButtonClicked: {
-                        Task {
+                SearchBar(text: $searchText, onSearchButtonClicked: {
+                    Task {
+                        if searchText.isEmpty {
+                            await viewModel.loadAuthors()
+                        } else {
                             await viewModel.searchAuthors(query: searchText)
                         }
-                    })
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                }
+                    }
+                })
+                .padding(.horizontal)
+                .padding(.top, 8)
                 
                 if viewModel.isLoading && viewModel.authors.isEmpty {
                     ProgressView()
@@ -45,6 +47,21 @@ struct AuthorsListView: View {
                                     AuthorCard(author: author)
                                 }
                                 .buttonStyle(PlainButtonStyle())
+                                .onAppear {
+                                    // Son elemana yaklaşıldığında bir sonraki sayfayı yükle
+                                    if author.id == viewModel.authors.last?.id && viewModel.hasMorePages && !viewModel.isLoadingMore {
+                                        Task {
+                                            await viewModel.loadMoreAuthors()
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Loading indicator (daha fazla yüklenirken)
+                            if viewModel.isLoadingMore {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
                             }
                         }
                         .padding()
@@ -182,35 +199,101 @@ struct SearchBar: View {
 class AuthorsListViewModel: ObservableObject {
     @Published var authors: [AuthorDetail] = []
     @Published var isLoading = false
+    @Published var isLoadingMore = false
     @Published var errorMessage: String?
+    @Published var hasMorePages = true
     
     private let apiService = APIService.shared
+    private var currentPage = 1
+    private var isSearchMode = false
+    private var currentSearchQuery: String?
     
     func loadAuthors() async {
+        // Reset pagination
+        currentPage = 1
+        hasMorePages = true
+        isSearchMode = false
+        currentSearchQuery = nil
+        
         isLoading = true
         errorMessage = nil
         
         do {
-            let response = try await apiService.fetchAuthors()
+            let response = try await apiService.fetchAuthors(page: currentPage, perPage: 12)
             authors = response.data
+            
+            // Eğer boş data gelirse veya beklenenden az gelirse, daha fazla sayfa yok
+            if response.data.isEmpty {
+                hasMorePages = false
+            }
         } catch {
             errorMessage = "Yazarlar yüklenirken bir hata oluştu: \(error.localizedDescription)"
             print("Error loading authors: \(error)")
+            hasMorePages = false
         }
         
         isLoading = false
     }
     
+    func loadMoreAuthors() async {
+        // Daha fazla sayfa yoksa veya zaten yükleniyorsa çık
+        guard hasMorePages && !isLoadingMore else { return }
+        
+        isLoadingMore = true
+        currentPage += 1
+        
+        do {
+            let response: AuthorResponse
+            if isSearchMode, let query = currentSearchQuery {
+                response = try await apiService.fetchAuthors(page: currentPage, perPage: 12, search: query)
+            } else {
+                response = try await apiService.fetchAuthors(page: currentPage, perPage: 12)
+            }
+            
+            // Yeni data varsa ekle
+            if !response.data.isEmpty {
+                authors.append(contentsOf: response.data)
+            } else {
+                // Boş data gelirse daha fazla sayfa yok
+                hasMorePages = false
+            }
+            
+            // Eğer gelen data sayısı perPage'den azsa, daha fazla sayfa yok
+            if response.data.count < 12 {
+                hasMorePages = false
+            }
+        } catch {
+            print("Error loading more authors: \(error)")
+            // Hata durumunda sayfayı geri al ve daha fazla sayfa yok olarak işaretle
+            currentPage -= 1
+            hasMorePages = false
+        }
+        
+        isLoadingMore = false
+    }
+    
     func searchAuthors(query: String) async {
+        // Reset pagination
+        currentPage = 1
+        hasMorePages = true
+        isSearchMode = true
+        currentSearchQuery = query
+        
         isLoading = true
         errorMessage = nil
         
         do {
-            let response = try await apiService.fetchAuthors(search: query)
+            let response = try await apiService.fetchAuthors(page: currentPage, perPage: 12, search: query)
             authors = response.data
+            
+            // Eğer boş data gelirse, daha fazla sayfa yok
+            if response.data.isEmpty {
+                hasMorePages = false
+            }
         } catch {
             errorMessage = "Arama yapılırken bir hata oluştu: \(error.localizedDescription)"
             print("Error searching authors: \(error)")
+            hasMorePages = false
         }
         
         isLoading = false

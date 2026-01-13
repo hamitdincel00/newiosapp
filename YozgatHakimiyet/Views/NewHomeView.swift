@@ -7,49 +7,72 @@ struct NewHomeView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Manşetler Slider
-                    if !viewModel.headlines.isEmpty {
-                        HeadlinesSliderView(headlines: viewModel.headlines)
-                            .frame(height: 380)
-                            .padding(.bottom, 10)
+            ZStack {
+                if viewModel.isLoading && viewModel.headlines.isEmpty && viewModel.latestPosts.isEmpty {
+                    // İlk yükleme ekranı
+                    VStack(spacing: 20) {
+                        // Logo
+                        LogoView()
+                            .padding(.bottom, 20)
+                        
+                        // Loading Indicator
+                        ProgressView()
+                            .scaleEffect(1.5)
+                            .tint(.blue)
+                        
+                        Text("Yükleniyor...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
                     }
-                    
-                    // Featured Post
-                    if let featuredPost = viewModel.featuredPosts.first {
-                        FeaturedPostSection(post: featuredPost)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    // Normal içerik
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            // Manşetler Slider
+                            if !viewModel.headlines.isEmpty {
+                                HeadlinesSliderView(headlines: viewModel.headlines)
+                                    .frame(height: 380)
+                                    .padding(.bottom, 10)
+                            }
+                            
+                            // Featured Post
+                            if let featuredPost = viewModel.featuredPosts.first {
+                                FeaturedPostSection(post: featuredPost)
+                            }
+                            
+                            // Latest Videos Carousel
+                            if !viewModel.latestVideos.isEmpty {
+                                VideoCarouselSection(videos: viewModel.latestVideos)
+                            }
+                            
+                            // Latest Galleries Carousel
+                            if !viewModel.latestGalleries.isEmpty {
+                                GalleryCarouselSection(galleries: viewModel.latestGalleries)
+                            }
+                            
+                            // Authors Section
+                            if !viewModel.authors.isEmpty {
+                                AuthorsSection(authors: viewModel.authors, showSideMenu: $showSideMenu)
+                            }
+                            
+                            // Quick Access Widgets
+                            QuickAccessSection()
+                            
+                            // Latest News
+                            LatestNewsSection(posts: viewModel.latestPosts)
+                            
+                            // Popular Posts (Çok Okunanlar)
+                            if !viewModel.popularPosts.isEmpty {
+                                PopularPostsSection(posts: viewModel.popularPosts)
+                            }
+                            
+                            // Footer
+                            AppFooter()
+                                .padding(.top, 20)
+                        }
                     }
-                    
-                    // Latest Videos Carousel
-                    if !viewModel.latestVideos.isEmpty {
-                        VideoCarouselSection(videos: viewModel.latestVideos)
-                    }
-                    
-                    // Latest Galleries Carousel
-                    if !viewModel.latestGalleries.isEmpty {
-                        GalleryCarouselSection(galleries: viewModel.latestGalleries)
-                    }
-                    
-                    // Authors Section
-                    if !viewModel.authors.isEmpty {
-                        AuthorsSection(authors: viewModel.authors, showSideMenu: $showSideMenu)
-                    }
-                    
-                    // Quick Access Widgets
-                    QuickAccessSection()
-                    
-                    // Latest News
-                    LatestNewsSection(posts: viewModel.latestPosts)
-                    
-                    // Popular Posts (Çok Okunanlar)
-                    if !viewModel.popularPosts.isEmpty {
-                        PopularPostsSection(posts: viewModel.popularPosts)
-                    }
-                    
-                    // Footer
-                    AppFooter()
-                        .padding(.top, 20)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

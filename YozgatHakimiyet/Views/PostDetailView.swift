@@ -88,6 +88,10 @@ struct PostDetailView: View {
                         HTMLContentView(htmlContent: post.content, width: geometry.size.width)
                             .frame(width: geometry.size.width)
                         
+                        // Comments Section
+                        CommentsView(referenceId: post.id, referenceType: "post")
+                            .padding(.top, 20)
+                        
                     } else if viewModel.isLoading {
                         ProgressView()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -14,7 +14,7 @@ struct ArticleDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let article = viewModel.article {
                         // Hero Image
-                        AsyncImage(url: URL(string: article.imageURL)) { phase in
+                        AsyncImage(url: article.imageURL.flatMap { URL(string: $0) }) { phase in
                             switch phase {
                             case .empty:
                                 Rectangle()
@@ -135,6 +135,10 @@ struct ArticleDetailView: View {
                         }
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        // Comments Section
+                        CommentsView(referenceId: article.id, referenceType: "article")
+                            .padding(.top, 20)
                         
                     } else if viewModel.isLoading {
                         ProgressView()

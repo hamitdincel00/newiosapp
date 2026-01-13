@@ -56,10 +56,10 @@ struct AuthorDetail: Codable, Identifiable {
     
     // Default görsel URL'i
     var imageURL: String {
-        if let image = image {
+        if let image = image, !image.cropped.large.isEmpty {
             return image.cropped.large
         }
-        return "https://via.placeholder.com/300x300?text=\(name.prefix(1))"
+        return "" // Placeholder URL yerine boş string döndür
     }
 }
 

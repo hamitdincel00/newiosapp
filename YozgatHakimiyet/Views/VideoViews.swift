@@ -195,11 +195,15 @@ struct VideoDetailView: View {
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        // HTML Content if available
-                        if let content = video.content, !content.isEmpty {
-                            HTMLContentView(htmlContent: content, width: geometry.size.width)
-                                .frame(width: geometry.size.width)
-                        }
+                            // HTML Content if available
+                            if let content = video.content, !content.isEmpty {
+                                HTMLContentView(htmlContent: content, width: geometry.size.width)
+                                    .frame(width: geometry.size.width)
+                            }
+                            
+                            // Comments Section
+                            CommentsView(referenceId: video.id, referenceType: "video")
+                                .padding(.top, 20)
                         
                     } else if viewModel.isLoading {
                         ProgressView()

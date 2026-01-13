@@ -87,13 +87,14 @@ class HomeViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        async let headlinesTask = loadHeadlines()
-        async let topHeadlinesTask = loadTopHeadlines()
-        async let breakingTask = loadBreakingNews()
-        async let latestTask = loadLatestPosts()
-        async let galleriesTask = loadGalleries()
-        
-        _ = await [headlinesTask, topHeadlinesTask, breakingTask, latestTask, galleriesTask]
+        // Paralel yükleme - sonuçlar fonksiyonlar içinde state'e yazılıyor
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.loadHeadlines() }
+            group.addTask { await self.loadTopHeadlines() }
+            group.addTask { await self.loadBreakingNews() }
+            group.addTask { await self.loadLatestPosts() }
+            group.addTask { await self.loadGalleries() }
+        }
         
         isLoading = false
     }
